@@ -1,6 +1,10 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-admin.initializeApp();
+// const serviceAccount = require("../../SBS_creds/sbs1-8b65b-firebase-adminsdk-9tvt9-87d8d10285.json");
+admin.initializeApp({
+    // credential: admin.credential.cert(serviceAccount),
+    // databaseURL: "https://sbs1-8b65b.firebaseio.com",
+});
 const firebase = require('firebase');
 firebase.initializeApp({
     apiKey: "AIzaSyD81efen88ud3JiW-tcyzTanP6qOZYJMP4",
@@ -21,8 +25,8 @@ firebase.initializeApp({
 const user = {
     email: '',
     password: '',
-    first: '',
-    last: '',
+    first: ' ',
+    last: ' ',
     role: 'client'
 }
 
@@ -38,8 +42,8 @@ exports.CreateUser = functions.https.onRequest((request, response) => {
     
     u.email = request.body.email;
     u.password = request.body.password;
-    u.first = request.body.firstName;
-    u.last = request.body.lastName;
+    u.first = request.body.firstName? request.body.firstName: ' ';
+    u.last = request.body.lastName? request.body.lastName: ' ';
     
     if(request.method === "POST") {
         firebase.auth().createUserWithEmailAndPassword(u.email, u.password)
@@ -56,11 +60,7 @@ exports.CreateUser = functions.https.onRequest((request, response) => {
                 })
             }catch(e){
                 console.log(e)
-                // throw new functions.https.HttpsError(
-                //     'e-firestore', 
-                //     'firestore couldnot save',
-                //     e
-                // );
+                return response.send({message: 'error!', error: e});                
             }
             
             return response.send(
@@ -124,6 +124,129 @@ exports.SendResetPasswordEmail = functions.https.onRequest((request, response) =
         response.send({ "message": 'Wrongfull call method! Please use POST and pass email and password to register a user'})
     }   
 });
+
+exports.fbAddItem = functions.https.onRequest((request, response) => {
+    const { collection, item } = request.body
+    
+    admin.firestore()
+    .collection(collection)
+    .add(Object.assign({}, item))
+    .then( t => {
+        return response.send(
+            {
+                message: 'ok!'
+            });
+    })
+    .catch(e => {
+        console.log(e);
+        return response.send(
+            {
+                message: 'error!'
+            })
+    });
+})
+
+exports.fbGetItems = functions.https.onRequest((request, response) => {
+    const { collection } = request.body
+    admin.firestore()
+        .collection(collection)
+        .get()
+        .then(snapshot => {
+            let data = [];
+            snapshot.forEach(doc => {
+                data.push(
+                    {
+                        "id": doc.id, 
+                        "item": doc.data()
+                    }
+                );
+              });
+            return response.send({
+                message: 'ok!',
+                data: data
+            });
+        })
+        .catch(e => {
+            console.log(e);
+            return response.send(
+                {
+                    message: 'error!'
+                })
+        })
+})
+
+exports.fbGetConditionalItems = functions.https.onRequest((request, response) => {
+    const {collection, field, condition, value} = request.body
+    
+    admin.firestore()
+        .collection(collection)
+        .where(field, condition, value)
+        .get()
+        .then(snapshot => {
+            let data = [];
+            snapshot.forEach(doc => {
+                data.push(
+                    {
+                        "id": doc.id, 
+                        "item": doc.data()
+                    }
+                );
+              });
+            return response.send({
+                message: 'ok!',
+                data: data
+            });
+        })
+        .catch(e => {
+            console.log(e);
+            return response.send(
+                {
+                    message: 'error!'
+                })
+        })
+})
+
+exports.fbDeleteItem = functions.https.onRequest((request, response) => {
+    const { collection, itemId } = request.body
+    
+    admin.firestore()
+    .collection(collection)
+    .doc(itemId)
+    .delete()
+    .then(t => {
+        return response.send(
+            {
+                message: 'ok!'
+            });
+    })
+    .catch(e => {
+        return response.send(
+            {
+                message: 'error!'
+            })
+    });
+})
+
+exports.fbUpdateItem = functions.https.onRequest((request, response) => {
+    const { collection, itemId, item } = request.body
+    
+    admin.firestore()
+    .collection(collection)
+    .doc(itemId)
+    .update(item)
+    .then(t => {
+        return response.send(
+            {
+                message: 'ok!'
+            });
+    })
+    .catch(e => {
+        return response.send(
+            {
+                message: 'error!'
+            })
+    });
+})
 
 // exports.CreateUserOnFireStore = functions.auth.user().onCreate(user => {
 //     return admin.firestore().collection('users').doc(user.email).set({
